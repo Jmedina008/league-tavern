@@ -1,0 +1,247 @@
+// Fantasy Football Hub Multi-Tenant System Schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model League {
+  id                String   @id @default(cuid())
+  sleeperLeagueId  String   @unique
+  name             String
+  subdomain        String   @unique // e.g., "awesome-league"
+  customDomain     String?  @unique // e.g., "fantasyhub.awesomeleague.com"
+  season           Int      @default(2025)
+  commissionerId   String
+  
+  // League settings
+  isActive         Boolean  @default(true)
+  isPremium        Boolean  @default(false)
+  settings         Json?    // Custom league settings
+  
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  
+  commissioner     Commissioner @relation(fields: [commissionerId], references: [id])
+  users            User[]
+  matchups         Matchup[]
+  chatMessages     ChatMessage[]
+  forumThreads     ForumThread[]
+  
+  @@map("leagues")
+}
+
+model Commissioner {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  avatarUrl    String?
+  
+  // Authentication
+  authProvider String?  // "google", "discord", etc.
+  authId       String?  // Provider-specific ID
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  leagues      League[]
+  
+  @@map("commissioners")
+}
+
+model User {
+  id           String @id @default(cuid())
+  leagueId     String
+  rosterId     Int    // Not unique anymore since multiple leagues
+  teamName     String
+  ownerName    String
+  sleeperUsername String? // Their Sleeper username for chat auth
+  faabBalance  Int    @default(100) // Starting FAAB balance
+  
+  // Chat & Forum activity
+  isOnline     Boolean @default(false)
+  lastSeen     DateTime @default(now())
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  league       League @relation(fields: [leagueId], references: [id])
+  bets         Bet[]
+  transactions Transaction[]
+  chatMessages ChatMessage[]
+  forumPosts   ForumPost[]
+  
+  @@unique([leagueId, rosterId]) // Unique per league
+  @@map("users")
+}
+
+model Matchup {
+  id         String   @id @default(cuid())
+  leagueId   String
+  week       Int
+  matchupId  Int      // Not unique anymore since multiple leagues
+  teamAId    Int      // roster_id
+  teamBId    Int      // roster_id
+  teamAName  String
+  teamBName  String
+  
+  // Betting lines
+  spread     Float
+  overUnder  Float
+  teamAProj  Int
+  teamBProj  Int
+  linesLocked Boolean @default(false)
+  
+  // Results (filled after games complete)
+  teamAScore Float?
+  teamBScore Float?
+  settled    Boolean @default(false)
+  settledAt  DateTime?
+  
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  
+  league       League        @relation(fields: [leagueId], references: [id])
+  bets         Bet[]
+  forumThreads ForumThread[]
+  
+  @@unique([leagueId, week, matchupId]) // Unique per league
+  @@map("matchups")
+}
+
+model Bet {
+  id         String   @id @default(cuid())
+  userId     String
+  matchupId  String
+  
+  // Bet details
+  betType    BetType  // SPREAD, OVER, UNDER, MONEYLINE
+  selection  String   // Team name or "OVER"/"UNDER"
+  odds       String   // "-110", "+150", etc.
+  stake      Int      // FAAB amount
+  
+  // Results
+  status     BetStatus @default(PENDING)
+  payout     Float?   // Amount won/lost
+  settledAt  DateTime?
+  
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  
+  user       User     @relation(fields: [userId], references: [id])
+  matchup    Matchup  @relation(fields: [matchupId], references: [id])
+  
+  @@map("bets")
+}
+
+model Transaction {
+  id          String @id @default(cuid())
+  userId      String
+  type        TransactionType
+  amount      Int    // Positive = credit, Negative = debit
+  description String
+  betId       String?
+  createdAt   DateTime @default(now())
+  
+  user        User   @relation(fields: [userId], references: [id])
+  
+  @@map("transactions")
+}
+
+enum BetType {
+  SPREAD
+  OVER
+  UNDER
+  MONEYLINE
+}
+
+enum BetStatus {
+  PENDING
+  WON
+  LOST
+  PUSH
+  CANCELLED
+}
+
+enum TransactionType {
+  BET_PLACED
+  BET_WON
+  BET_LOST
+  BET_PUSH
+  FAAB_ADJUSTMENT
+  WEEKLY_BONUS
+}
+
+model ChatMessage {
+  id        String   @id @default(cuid())
+  leagueId  String
+  userId    String
+  content   String
+  imageUrl  String?  // For uploaded images/GIFs
+  createdAt DateTime @default(now())
+  
+  league    League @relation(fields: [leagueId], references: [id])
+  user      User   @relation(fields: [userId], references: [id])
+  
+  @@map("chat_messages")
+}
+
+model ForumThread {
+  id          String   @id @default(cuid())
+  leagueId    String
+  title       String
+  description String?
+  category    ThreadCategory @default(GENERAL)
+  
+  // For matchup-specific threads
+  matchupId   String?  // Optional - links to specific matchup
+  week        Int?     // Week number for matchup threads
+  
+  // Thread metadata
+  isPinned    Boolean  @default(false)
+  isLocked    Boolean  @default(false)
+  postCount   Int      @default(0)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  league      League     @relation(fields: [leagueId], references: [id])
+  matchup     Matchup?   @relation(fields: [matchupId], references: [id])
+  posts       ForumPost[]
+  
+  @@map("forum_threads")
+}
+
+model ForumPost {
+  id        String   @id @default(cuid())
+  threadId  String
+  userId    String
+  content   String
+  imageUrl  String?  // For uploaded images/GIFs
+  
+  // Reply functionality
+  parentId  String?  // For nested replies
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  thread    ForumThread @relation(fields: [threadId], references: [id])
+  user      User        @relation(fields: [userId], references: [id])
+  parent    ForumPost?  @relation("PostReplies", fields: [parentId], references: [id])
+  replies   ForumPost[] @relation("PostReplies")
+  
+  @@map("forum_posts")
+}
+
+enum ThreadCategory {
+  GENERAL
+  MATCHUP
+  TRADE_TALK
+  WAIVER_WIRE
+  TRASH_TALK
+  ANNOUNCEMENTS
+}
