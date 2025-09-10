@@ -9,7 +9,13 @@ export const prisma = globalForPrisma.prisma ?? new PrismaClient()
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
 
 // Betting utility functions
-export async function syncUsersFromSleeper(users: any[], rosters: any[]) {
+export async function syncUsersFromSleeper(users: any[], rosters: any[], leagueId?: string) {
+  // Skip if no leagueId provided (during build time)
+  if (!leagueId) {
+    console.warn('No leagueId provided for syncUsersFromSleeper, skipping sync')
+    return
+  }
+  
   const rosterById = new Map(rosters.map(r => [r.roster_id, r]))
   
   for (const roster of rosters) {
@@ -19,16 +25,26 @@ export async function syncUsersFromSleeper(users: any[], rosters: any[]) {
     const teamName = roster.metadata?.team_name || user.metadata?.team_name || user.display_name || `Team ${roster.roster_id}`
     const ownerName = user.display_name || "Unknown Owner"
 
-    await prisma.user.upsert({
-      where: { rosterId: roster.roster_id },
-      update: { teamName, ownerName },
-      create: {
-        rosterId: roster.roster_id,
-        teamName,
-        ownerName,
-        faabBalance: 100
-      }
-    })
+    try {
+      await prisma.user.upsert({
+        where: { 
+          leagueId_rosterId: {
+            leagueId: leagueId,
+            rosterId: roster.roster_id
+          }
+        },
+        update: { teamName, ownerName },
+        create: {
+          leagueId: leagueId,
+          rosterId: roster.roster_id,
+          teamName,
+          ownerName,
+          faabBalance: 100
+        }
+      })
+    } catch (error) {
+      console.warn(`Failed to sync user for roster ${roster.roster_id}:`, error)
+    }
   }
 }
 

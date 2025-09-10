@@ -3,7 +3,16 @@ import { generateFAABAdjustmentReport } from '../../../../lib/db'
 
 export async function GET() {
   try {
-    const adjustments = await generateFAABAdjustmentReport(1) // Current week
+    // Handle case where database might not exist during build
+    let adjustments = []
+    
+    try {
+      adjustments = await generateFAABAdjustmentReport(1) // Current week
+    } catch (dbError) {
+      console.warn('Database not available during build, returning empty report')
+      // Return empty CSV during build time
+      adjustments = []
+    }
     
     // Create CSV content
     const csvHeaders = 'Roster ID,Team Name,Owner Name,FAAB Adjustment,Notes\n'
