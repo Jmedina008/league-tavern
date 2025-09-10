@@ -5,8 +5,8 @@ import { ArrowRight, Trophy, Flame, ChevronRight, Play, Newspaper, Menu } from "
 export const revalidate = 60 // refresh data every 60s
 
 // ---- Config ----
-const DEFAULT_LEAGUE_ID = process.env.LEAGUE_ID || "1180507846524702720"
-const SITE_NAME = process.env.NEXT_PUBLIC_SITE_NAME || "Your Fantasy League"
+const DEFAULT_LEAGUE_ID = process.env.LEAGUE_ID || "1234567890123456789"
+const SITE_NAME = process.env.NEXT_PUBLIC_SITE_NAME || "Fantasy Tavern"
 const SLEEPER = "https://api.sleeper.app/v1"
 
 // ---- Types (subset) ----

@@ -63,7 +63,7 @@ export default function RegisterLeaguePage() {
             <input
               value={leagueId}
               onChange={(e) => setLeagueId(e.target.value)}
-              placeholder="e.g., 1180507846524702720"
+              placeholder="e.g., 1234567890123456789"
               className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
               required
             />

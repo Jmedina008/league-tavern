@@ -63,12 +63,12 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    // Check if subdomain is available
+    // Check if subdomain is available (only if the league creating it isn't the same one)
     const existingSubdomain = await prisma.league.findUnique({
       where: { subdomain: body.league.subdomain }
     })
     
-    if (existingSubdomain) {
+    if (existingSubdomain && existingSubdomain.sleeperLeagueId !== body.league.sleeperLeagueId) {
       return NextResponse.json(
         { error: 'Subdomain is already taken' },
         { status: 400 }
@@ -136,7 +136,7 @@ export async function POST(request: NextRequest) {
         id: league.id,
         name: league.name,
         subdomain: league.subdomain,
-        url: `https://${league.subdomain}.fantasyhub.com`
+        url: `https://${league.subdomain}.fantasytavern.com`
       },
       commissioner: {
         id: commissioner.id,

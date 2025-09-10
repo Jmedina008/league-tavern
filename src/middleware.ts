@@ -56,9 +56,9 @@ function getSubdomain(hostname: string): string | null {
     return null
   }
   
-  // Production: extract subdomain from fantasyhub.com
+  // Production: extract subdomain from fantasytavern.com
   const parts = hostname.split('.')
-  if (parts.length >= 3 && hostname.includes('fantasyhub.com')) {
+  if (parts.length >= 3 && (hostname.includes('fantasytavern.com') || hostname.includes('vercel.app'))) {
     return parts[0]
   }
   
